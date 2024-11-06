@@ -1,22 +1,20 @@
 import express from 'express'
-
-import { getEvent, getEvents, createEvent, updateEvent, deleteEvent, deleteWholeCollection } from '../controllers/event.js'
-import { verifyEmployee, verifyToken } from '../middleware/auth.js'
+import { createDeduction, getDeductions, deleteDeduction, updateDeduction } from '../controllers/deduction.js'
+import { verifyEmployee, verifyManager, verifySuperAdmin, verifyToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
 // GET
-router.get('/get/single/:eventId', verifyToken, verifyEmployee, getEvent)
-router.get('/get/all', verifyToken, verifyEmployee, getEvents)
+router.get('/get/single/:deductionId', verifyToken, verifyEmployee, getDeductions, verifyManager)
+router.get('/get/all', verifyToken, verifySuperAdmin, getDeductions, verifyManager)
 
 // POST
-router.post('/create', createEvent)
+router.post('/create', createDeduction)
 
 // PUT
-router.put('/update/:eventId', verifyToken, verifyEmployee, updateEvent)
+router.put('/update/:deductionId', verifyToken, verifyManager, verifySuperAdmin, updateDeduction)
 
 // DELETE
-router.delete('/delete/:eventId', verifyToken, verifyEmployee, deleteEvent)
-router.delete('/delete-whole-collection', deleteWholeCollection)
+router.delete('/delete/:deductionId', verifyToken, verifyManager, verifySuperAdmin, deleteDeduction)
 
 export default router
