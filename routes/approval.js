@@ -1,7 +1,7 @@
 import express from 'express'
 
 import { getApproval, getApprovals,   createVoucherApproval,  createRefundApproval,  deleteApproval, deleteWholeCollection, acceptVoucherApproval, rejectVoucherApproval } from '../controllers/approval.js'
-import { verifyToken, verifyEmployee, verifyManager } from '../middleware/auth.js'
+import { verifyToken, verifyEmployee, verifyManager, verifySuperAdmin } from '../middleware/auth.js'
 const router = express.Router()
 
 // GET
@@ -11,8 +11,8 @@ router.get('/get/all', getApprovals)
 // POST
 
 router.post('/create/voucher', verifyToken, verifyEmployee, createVoucherApproval)
-router.post('/accept/voucher/:approvalId', verifyToken, verifyManager, acceptVoucherApproval)
-router.post('/reject/voucher/:approvalId', verifyToken, verifyManager, rejectVoucherApproval)
+router.post('/accept/voucher/:approvalId', verifyToken, verifySuperAdmin, verifyManager, acceptVoucherApproval)
+router.post('/reject/voucher/:approvalId', verifyToken, verifySuperAdmin, verifyManager, rejectVoucherApproval)
 
 router.post('/create/refund', verifyToken, verifyEmployee, createRefundApproval)
 
