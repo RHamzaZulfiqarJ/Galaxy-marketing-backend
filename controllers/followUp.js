@@ -157,31 +157,16 @@ export const getFollowUpsStats = async (req, res, next) => {
         
         console.log("Fetched Follow-Ups:", followUps.length);
 
-        // Helper function to parse and normalize followUpDate
-        const normalizeDate = (dateStr) => {
-            try {
-                const parsedDate = parse(dateStr, 'd-M-yy', new Date());
-                if (isValid(parsedDate)) {
-                    return format(parsedDate, 'yyyy-MM-dd');
-                }
-                const fallbackDate = new Date(dateStr);
-                return isValid(fallbackDate) ? format(fallbackDate, 'yyyy-MM-dd') : null;
-            } catch (error) {
-                console.error("Date parsing error:", error);
-                return null;
-            }
-        };
-
         // Filter, map, and normalize follow-ups based on lead existence and valid date
         const validFollowUps = followUps.reduce((acc, followUp) => {
             if (followUp.leadId && followUp.followUpDate) {
-                const normalizedDate = normalizeDate(followUp.followUpDate) || followUp.followUpDate;
+                // Directly use the date if it's in "yyyy-MM-dd" format
+                const normalizedDate = followUp.followUpDate;
+
                 console.log(`Normalized Date for followUp ${followUp._id}:`, normalizedDate);
 
-                if (new Date(normalizedDate) <= currentDate) {
-                    followUp.followUpDate = normalizedDate;
-                    acc.push(followUp);
-                }
+                followUp.followUpDate = normalizedDate;
+                acc.push(followUp);
             }
             return acc;
         }, []);
@@ -225,6 +210,7 @@ export const getFollowUpsStats = async (req, res, next) => {
         next(createError(500, error.message));
     }
 };
+
 
 export const createFollowUp = async (req, res, next) => {
     try {
