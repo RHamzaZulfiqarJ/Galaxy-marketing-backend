@@ -10,7 +10,7 @@ router.get('/get/single/:eventId', verifyToken, verifyEmployee, getEvent)
 router.get('/get/all', verifyToken, verifyEmployee, getEvents)
 
 // POST
-router.post('/create', verifyToken, verifyEmployee, createEvent)
+router.post('/create', createEvent)
 
 // PUT
 router.put('/update/:eventId', verifyToken, verifyEmployee, updateEvent)
