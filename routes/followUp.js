@@ -1,7 +1,7 @@
 import express from 'express'
 
 import { getFollowUp, getFollowUps,getEmployeeFollowUps, createFollowUp, deleteFollowUp, deleteWholeCollection, getFollowUpsStats,getEmployeeFollowUpsStats } from '../controllers/followUp.js'
-import { verifyEmployee, verifyToken } from '../middleware/auth.js'
+import { verifyEmployee, verifyToken, verifySuperAdmin } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -9,7 +9,7 @@ const router = express.Router()
 router.get('/get/single/:followUpId', verifyToken, verifyEmployee, getFollowUp)
 router.get('/get/all/:leadId', verifyToken, getFollowUps)
 router.get('/get/employee/:leadId', verifyToken, verifyEmployee, getEmployeeFollowUps)
-router.get('/get/stats', getFollowUpsStats)
+router.get('/get/stats', getFollowUpsStats, verifyToken)
 router.get('/get/stats/employee', verifyToken, verifyEmployee, getEmployeeFollowUpsStats)
 
 // POST
