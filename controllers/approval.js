@@ -60,11 +60,11 @@ export const createVoucherApproval = async (req, res, next) => {
         next(createError(500, err.message))
     }
 }
+
 export const acceptVoucherApproval = async (req, res, next) => {
     try {
         const { approvalId } = req.params;
         const { password } = req.body;
-        const { adminID } = req.query;
 
         if (!approvalId || !password) {
             return next(createError(400, 'Approval ID and password are required.'));
@@ -75,15 +75,12 @@ export const acceptVoucherApproval = async (req, res, next) => {
             return next(createError(404, 'Approval not found.'));
         }
 
-        const admin = await User.findById('66803a151935363f991ac704');
+        const admin = await User.findById('672b6beeaee13b66dfca3308');
         if (!admin) {
             return next(createError(404, 'Admin user not found.'));
         }
 
-        const inputPassword = password;
-        const savedPassword = admin.password;
-        const isPasswordCorrect = await bcrypt.compare(inputPassword, savedPassword);
-
+        const isPasswordCorrect = await bcrypt.compare(password, admin.password);
         if (!isPasswordCorrect) {
             return next(createError(401, 'Incorrect Password'));
         }
@@ -108,35 +105,45 @@ export const acceptVoucherApproval = async (req, res, next) => {
 
 export const rejectVoucherApproval = async (req, res, next) => {
     try {
-
         const { approvalId } = req.params;
         const { password } = req.body;
 
-        const approval = await Approval.findById(approvalId)
+        if (!approvalId || !password) {
+            return next(createError(400, 'Approval ID and password are required.'));
+        }
 
-        const admin = await User.findById(req.user._id)
-        const inputPassword = password;
-        const savedPassword = admin?.password
-        const isPasswordCorrect = await bcrypt.compare(inputPassword, savedPassword)
-        if (!isPasswordCorrect) return next(createError(401, 'Incorrect Password'))
+        const approval = await Approval.findById(approvalId);
+        if (!approval) {
+            return next(createError(404, 'Approval not found.'));
+        }
 
+        const admin = await User.findById('672b6beeaee13b66dfca3308');
+        if (!admin) {
+            return next(createError(404, 'Admin user not found.'));
+        }
 
-        const voucher = await Voucher.findOne({ uid: approval.data.uid })
+        const isPasswordCorrect = await bcrypt.compare(password, admin.password);
+        if (!isPasswordCorrect) {
+            return next(createError(401, 'Incorrect Password'));
+        }
 
-        await Approval.findByIdAndUpdate(approvalId, { $set: { status: 'rejected' } }, { new: true })
+        const voucher = await Voucher.findOne({ uid: approval.data.uid });
+        if (!voucher) {
+            return next(createError(404, 'Voucher not found.'));
+        }
+
+        await Approval.findByIdAndUpdate(approvalId, { $set: { status: 'rejected' } }, { new: true });
         const result = await Voucher.findByIdAndUpdate(
             voucher._id,
             { $set: { status: 'rejected' } },
             { new: true }
         );
-        res.status(200).json({ result, message: '', success: true })
 
+        res.status(200).json({ result, message: 'Voucher rejected successfully', success: true });
     } catch (err) {
-        next(createError(500, err.message))
+        next(createError(500, err.message));
     }
-}
-
-
+};
 
 export const createRefundApproval = async (req, res, next) => {
     try {
