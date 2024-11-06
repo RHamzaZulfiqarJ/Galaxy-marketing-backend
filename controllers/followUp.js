@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 import FollowUp from '../models/followUp.js'
 import { createError } from '../utils/error.js'
 import Lead from '../models/lead.js'
-import { parse, format } from 'date-fns';
+import { parse, format, isValid } from 'date-fns'  // Ensure date-fns is installed and imported
 
 export const getFollowUp = async (req, res, next) => {
     try {
@@ -140,78 +140,88 @@ export const getEmployeeFollowUpsStats = async (req, res, next) => {
 
 export const getFollowUpsStats = async (req, res, next) => {
     try {
+        const currentDate = new Date();
+        console.log("Current Date:", currentDate);
+
+        // Fetch all follow-ups with nested populates and filter by non-archived leads
         const followUps = await FollowUp.find()
             .populate({
                 path: 'leadId',
-                match: { isArchived: false },  // Only include leads that are not archived
+                match: { isArchived: false },
                 populate: [
                     { path: 'client' },
                     { path: 'property' },
                     { path: 'allocatedTo' },
                 ],
             }).exec();
+        
+        console.log("Fetched Follow-Ups:", followUps.length);
 
-        const currentDate = new Date();
-
-        const validFollowUps = followUps
-            .filter(followUp => followUp.leadId !== null)
-            .map(followUp => {
-                if (!followUp.followUpDate || followUp.followUpDate.trim() === '') {
-                    return null;
+        // Helper function to parse and normalize followUpDate
+        const normalizeDate = (dateStr) => {
+            try {
+                const parsedDate = parse(dateStr, 'd-M-yy', new Date());
+                if (isValid(parsedDate)) {
+                    return format(parsedDate, 'yyyy-MM-dd');
                 }
+                const fallbackDate = new Date(dateStr);
+                return isValid(fallbackDate) ? format(fallbackDate, 'yyyy-MM-dd') : null;
+            } catch (error) {
+                console.error("Date parsing error:", error);
+                return null;
+            }
+        };
 
-                let normalizedDate;
-                try {
-                    const parsedDate = parse(followUp.followUpDate, 'd-M-yy', new Date()) || new Date(followUp.followUpDate);
-                    normalizedDate = format(parsedDate, 'yyyy-MM-dd');
-                } catch {
-                    normalizedDate = followUp.followUpDate;
+        // Filter, map, and normalize follow-ups based on lead existence and valid date
+        const validFollowUps = followUps.reduce((acc, followUp) => {
+            if (followUp.leadId && followUp.followUpDate) {
+                const normalizedDate = normalizeDate(followUp.followUpDate) || followUp.followUpDate;
+                console.log(`Normalized Date for followUp ${followUp._id}:`, normalizedDate);
+
+                if (new Date(normalizedDate) <= currentDate) {
+                    followUp.followUpDate = normalizedDate;
+                    acc.push(followUp);
                 }
+            }
+            return acc;
+        }, []);
 
-                followUp.followUpDate = normalizedDate;
+        console.log("Valid Follow-Ups after filtering:", validFollowUps.length);
 
-                if (new Date(normalizedDate) > currentDate) {
-                    return null;
-                }
-
-                return followUp;
-            })
-            .filter(followUp => followUp !== null);
-
-        // Get the latest created follow-up for each lead
+        // Get the latest follow-up for each lead based on createdAt timestamp
         const latestFollowUpsByLead = validFollowUps.reduce((result, followUp) => {
             const leadId = followUp.leadId._id.toString();
-
-            // Use createdAt to find the most recently created follow-up
             if (!result[leadId] || new Date(followUp.createdAt) > new Date(result[leadId].createdAt)) {
                 result[leadId] = followUp;
             }
             return result;
         }, {});
 
-        const latestFollowUpsArray = Object.values(latestFollowUpsByLead)
-            .filter(followUp => new Date(followUp.followUpDate) <= currentDate);
+        console.log("Latest Follow-Ups by Lead:", Object.keys(latestFollowUpsByLead).length);
 
-        latestFollowUpsArray.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
-
-        const groupedByDate = latestFollowUpsArray.reduce((result, followUp) => {
+        // Convert the latest follow-ups to an array, sorted and grouped by followUpDate
+        const groupedByDate = Object.values(latestFollowUpsByLead).reduce((acc, followUp) => {
             const followUpDate = followUp.followUpDate;
-
-            if (!result[followUpDate]) {
-                result[followUpDate] = [];
-            }
-
-            result[followUpDate].push(followUp);
-            return result;
+            if (!acc[followUpDate]) acc[followUpDate] = [];
+            acc[followUpDate].push(followUp);
+            return acc;
         }, {});
 
-        const responseArray = Object.keys(groupedByDate).map(date => ({
-            date,
-            followUps: groupedByDate[date]
-        }));
+        console.log("Grouped Follow-Ups by Date:", Object.keys(groupedByDate));
+
+        // Sort dates and create the final response structure
+        const responseArray = Object.keys(groupedByDate)
+            .sort((a, b) => new Date(a) - new Date(b))
+            .map(date => ({
+                date,
+                followUps: groupedByDate[date],
+            }));
+
+        console.log("Final Response Array:", responseArray);
 
         res.status(200).json({ result: responseArray, message: "Stats fetched successfully.", success: true });
     } catch (error) {
+        console.error("Error in getFollowUpsStats:", error);
         next(createError(500, error.message));
     }
 };
