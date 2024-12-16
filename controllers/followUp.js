@@ -55,7 +55,6 @@ export const getEmployeeFollowUps = async (req, res, next) => {
     }
 };
 
-
 export const getEmployeeFollowUpsStats = async (req, res, next) => {
     try {
         const currentDate = new Date();
@@ -87,7 +86,7 @@ export const getEmployeeFollowUpsStats = async (req, res, next) => {
 
         console.log("Employee Follow-Ups:", employeeFollowUps.length);
 
-        const latestFollowUps = employeeFollowUps.reduce((acc, followUp) => {
+        const groupedFollowUps = employeeFollowUps.reduce((acc, followUp) => {
             if (!followUp.followUpDate) return acc;
 
             let normalizedDate;
@@ -100,23 +99,10 @@ export const getEmployeeFollowUpsStats = async (req, res, next) => {
                 normalizedDate = followUp.followUpDate;
             }
 
-            if (new Date(normalizedDate) > currentDate) return acc;
-
-            const leadId = followUp.leadId?._id.toString();
-            if (!acc[leadId] || new Date(followUp.createdAt) > new Date(acc[leadId].createdAt)) {
-                followUp.followUpDate = normalizedDate;
-                acc[leadId] = followUp;
-            }
-
-            return acc;
-        }, {});
-
-        console.log("Latest Follow-Ups by Lead:", Object.keys(latestFollowUps).length);
-
-        const groupedFollowUps = Object.values(latestFollowUps).reduce((acc, followUp) => {
-            const followUpDate = followUp.followUpDate;
+            const followUpDate = normalizedDate || followUp.followUpDate;
             if (!acc[followUpDate]) acc[followUpDate] = [];
             acc[followUpDate].push(followUp);
+
             return acc;
         }, {});
 
