@@ -57,84 +57,80 @@ export const getEmployeeFollowUps = async (req, res, next) => {
 
 export const getEmployeeFollowUpsStats = async (req, res, next) => {
     try {
-        // Fetch all follow-ups and populate the related leadId, client, property, and allocatedTo
-        const allFollowUps = await FollowUp.find()
+        const currentDate = new Date();
+
+        // Fetch only relevant follow-ups from the database
+        const followUps = await FollowUp.find({})
             .populate({
                 path: 'leadId',
-                match: { isArchived: false },  // Only include leads that are not archived
+                match: { isArchived: false },
                 populate: [
                     { path: 'client' },
                     { path: 'property' },
-                    { path: 'allocatedTo' }
-                ]
+                    { path: 'allocatedTo' },
+                ],
             })
             .exec();
 
-        // Filter follow-ups by checking if the logged-in user is in the allocatedTo field
-        const filteredFollowUps = allFollowUps.filter(followUp =>
-            followUp.leadId?.allocatedTo.some(emp => emp._id.toString() === req.user?._id.toString())
+        // Filter follow-ups where the logged-in user is in the allocatedTo field
+        const employeeFollowUps = followUps.filter(
+            followUp =>
+                followUp.leadId?.allocatedTo.some(
+                    emp => emp._id.toString() === req.user?._id.toString()
+                )
         );
 
-        // Get the current date
-        const currentDate = new Date();
-
-        // Normalize dates, filter out empty strings and future dates, and keep only the latest follow-up for each lead
-        const latestFollowUpsByLead = filteredFollowUps.reduce((result, followUp) => {
-            if (!followUp.followUpDate || followUp.followUpDate.trim() === '') {
-                return result; // Exclude empty string dates
-            }
+        // Process follow-ups: normalize dates, exclude future dates, and keep latest per lead
+        const latestFollowUps = employeeFollowUps.reduce((acc, followUp) => {
+            if (!followUp.followUpDate) return acc; // Skip if no followUpDate
 
             let normalizedDate;
             try {
-                // Attempt to parse various date formats
-                const parsedDate = parse(followUp.followUpDate, 'd-M-yy', new Date()) || new Date(followUp.followUpDate);
-                normalizedDate = format(parsedDate, 'yyyy-MM-dd');
+                normalizedDate = format(
+                    parse(followUp.followUpDate, 'd-M-yy', new Date()) || new Date(followUp.followUpDate),
+                    'yyyy-MM-dd'
+                );
             } catch {
-                normalizedDate = followUp.followUpDate; // Default to original if parsing fails
+                normalizedDate = followUp.followUpDate; // Use original if parsing fails
             }
 
-            followUp.followUpDate = normalizedDate;
+            // Exclude follow-ups with future dates
+            if (new Date(normalizedDate) > currentDate) return acc;
 
-            // Exclude follow-ups with dates greater than the current date
-            if (new Date(normalizedDate) > currentDate) {
-                return result;
-            }
-
+            // Keep only the latest follow-up for each lead
             const leadId = followUp.leadId?._id.toString();
-            if (!result[leadId] || new Date(followUp.followUpDate) > new Date(result[leadId].followUpDate)) {
-                result[leadId] = followUp;
-            }
-            return result;
-        }, {});
-
-        // Convert the object to an array of follow-ups
-        const latestFollowUpsArray = Object.values(latestFollowUpsByLead);
-
-        // Sort follow-ups by followUpDate in ascending order
-        latestFollowUpsArray.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
-
-        // Group the latest follow-ups by date for the final stats
-        const groupedByDate = latestFollowUpsArray.reduce((result, followUp) => {
-            const followUpDate = followUp.followUpDate; // Using normalized date directly
-
-            if (!result[followUpDate]) {
-                result[followUpDate] = [];
+            if (!acc[leadId] || new Date(followUp.createdAt) > new Date(acc[leadId].createdAt)) {
+                followUp.followUpDate = normalizedDate;
+                acc[leadId] = followUp;
             }
 
-            result[followUpDate].push(followUp);
-            return result;
+            return acc;
         }, {});
 
-        // Convert grouped object to an array of objects with date and followUps array
-        const responseArray = Object.keys(groupedByDate).map(date => ({
-            date,
-            followUps: groupedByDate[date]
-        }));
+        // Convert the latest follow-ups to an array and group them by date
+        const groupedFollowUps = Object.values(latestFollowUps).reduce((acc, followUp) => {
+            const followUpDate = followUp.followUpDate;
+            if (!acc[followUpDate]) acc[followUpDate] = [];
+            acc[followUpDate].push(followUp);
+            return acc;
+        }, {});
 
-        // Respond with the final grouped data
-        res.status(200).json({ result: responseArray, message: "Stats fetched successfully.", success: true });
-    } catch (err) {
-        next(createError(500, err.message));
+        // Prepare the final response structure
+        const responseArray = Object.keys(groupedFollowUps)
+            .sort((a, b) => new Date(a) - new Date(b))
+            .map(date => ({
+                date,
+                followUps: groupedFollowUps[date],
+            }));
+
+        res.status(200).json({
+            result: responseArray,
+            message: 'Employee follow-up stats fetched successfully.',
+            success: true,
+        });
+    } catch (error) {
+        console.error('Error fetching employee follow-up stats:', error);
+        next(createError(500, error.message));
     }
 };
 
