@@ -73,7 +73,6 @@ export const getClients = async (req, res, next) => {
 
     } catch (err) {
         next(createError(500, err.message))
-
     }
 }
 

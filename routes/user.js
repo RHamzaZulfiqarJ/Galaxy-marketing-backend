@@ -18,7 +18,7 @@ const verifyIsSameUser = (req, res, next) => {
 // GET
 router.get('/get/all', verifyToken, verifyManager, getUsers)
 router.get('/get/single/:userId', verifyToken, verifyIsSameUser, getUser)
-router.get('/get/clients', verifyEmployee, getClients)
+router.get('/get/clients', verifyToken, verifyEmployee, getClients)
 router.get('/get/employees', verifyToken, verifyEmployee, getEmployees)
 router.get('/filter', verifyToken, verifyEmployee, filterUser)
 
