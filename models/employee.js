@@ -5,7 +5,7 @@ const employeeSchema = Schema({
     username: { type: String, required: false, },
     firstName: { type: String, required: true, },
     lastName: { type: String, required: true, },
-    phone: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
     employee: { type: String, required: false, unique: true},
     password: { type: String, required: false, },
     role: { type: String, required: true, default: 'client', enum: ['client', 'employee', 'manager', 'super_admin'] },
