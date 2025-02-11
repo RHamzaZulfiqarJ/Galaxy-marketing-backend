@@ -9,7 +9,7 @@ const leadSchema = Schema({
     priority: { type: String, required: false, default: 'moderate' },
     status: { type: String, required: false },   // closed, followed up, contacted etc.
     clientName: { type: String, required: false },
-    clientPhone: { type: String, required: false, unique: true },
+    clientPhone: { type: String, required: false },
     client: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     source: { type: String, required: false },   // facebook,instagram etc.
     description: { type: String, required: false },
