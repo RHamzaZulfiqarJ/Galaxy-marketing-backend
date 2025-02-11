@@ -287,12 +287,6 @@ export const createLead = async (req, res, next) => {
         const { city, priority, area, property, status, source, description, count, clientName, clientPhone } = req.body;
         const { followUpStatus, followUpDate, remarks } = req.body  // for followup
 
-        const alreadyExist = await Lead.findOne({ clientPhone: clientPhone });
-
-        if (alreadyExist) {
-            return res.status(400).json({ message: 'Lead already exist', success: false });
-        }
-
         const foundLead = await User.findOne({ phone: clientPhone });
 
         const leadsToCreate = Number(count) || 1;
