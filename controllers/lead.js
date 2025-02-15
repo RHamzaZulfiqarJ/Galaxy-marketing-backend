@@ -3,13 +3,14 @@ import User from '../models/user.js';
 import FollowUp from '../models/followUp.js';
 import Project from '../models/project.js';
 import { createError, isValidDate } from '../utils/error.js';
+import mongoose from 'mongoose';
 
 export const getLead = async (req, res, next) => {
     try {
         const { leadId } = req.params;
         const findedLead = await Lead.findById(leadId)
             .populate('client')
-            .populate('allocatedTo')
+            .populate("allocatedTo", "_id firstName lastName")
             .populate('property')
             .exec();
 
@@ -292,7 +293,7 @@ export const createLead = async (req, res, next) => {
         if (alreadyExist) {
             return res.status(400).json({ message: 'Lead already exist', success: false });
         }
-      
+
         const foundLead = await User.findOne({ phone: clientPhone });
 
         const leadsToCreate = Number(count) || 1;
@@ -335,36 +336,142 @@ export const createLead = async (req, res, next) => {
     }
 };
 
-export const updateLead = async (req, res, next) => {
+export const uploadLeads = async (req, res) => {
     try {
-        const { leadId } = req.params;
-        const {
-            firstName, lastName, area, username, phone, CNIC, clientCity,
-            city, priority, property, status, source, description,
-        } = req.body;
+      const { leads } = req.body;
+      if (!leads || !Array.isArray(leads) || leads.length === 0) {
+        return res.status(400).json({ message: "No leads provided." });
+      }
 
-        const foundLead = await Lead.findById(leadId);
-
-        const updatedUser = await User.findByIdAndUpdate(
-            foundLead.client,
-            { firstName, lastName, username, phone, CNIC, city: clientCity, project: property },
-        );
-
-        const updatedLead = await Lead.findByIdAndUpdate(
-            leadId,
-            { city, priority, property, area, status, source, description, ...req.body },
-            { new: true },
-        )
-            .populate('property')
-            .populate('client')
-            .populate('allocatedTo')
-            .exec();
-
-        res.status(200).json({ result: updatedLead, message: 'Lead updated successfully', success: true });
-    } catch (err) {
-        next(createError(500, err.message));
+      const userId = req.user?._id;
+  
+      // Process each lead. You can add more mapping logic if needed.
+      const newLeads = await Promise.all(
+        leads.map(async (lead) => {
+          // Optionally, resolve relations: for instance, find user by phone if needed
+          const client = lead.clientPhone
+            ? await User.findOne({ phone: lead.clientPhone })
+            : null;
+            const property = lead.project
+            ? await Project.findOne({ uid: lead.project })
+            : null;
+  
+          const newLead = new Lead({
+            client: client ? client._id : null,
+            property: property ? property._id : null,
+            area: lead.area || "",
+            city: lead.city || "",
+            priority: lead.priority || "moderate",
+            status: lead.status || "",
+            clientName: lead.clientName || "",
+            clientPhone: lead.clientPhone || "",
+            source: lead.source || "",
+            description: lead.description || "",
+            allocatedTo: userId ? [userId] : [],
+            images: [],
+            isArchived: false,
+            followUps: [],
+            isAppliedForRefund: false,
+            uid: lead.uid || "",
+          });
+          return await newLead.save();
+        })
+      );
+  
+      res.status(201).json({ message: "Leads uploaded successfully.", result: newLeads });
+    } catch (error) {
+      res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
-};
+  };
+  
+  export const updateLead = async (req, res, next) => {
+    try {
+      const { leadId } = req.params;
+      let {
+        firstName,
+        lastName,
+        area,
+        username,
+        phone,
+        CNIC,
+        clientCity,
+        city,
+        priority,
+        property, // may be "Test1" (invalid ObjectId)
+        status,
+        source,
+        description,
+      } = req.body;
+  
+      // Get the existing lead
+      const foundLead = await Lead.findById(leadId);
+      if (!foundLead) {
+        return next(createError(404, "Lead not found"));
+      }
+  
+      // Resolve the property field:
+      // Start with the existing property from foundLead
+      let resolvedProperty = foundLead.property;
+  
+      if (property) {
+        // If property is not a valid ObjectId, try to find a project by its name
+        if (!mongoose.Types.ObjectId.isValid(property)) {
+          const foundProject = await Project.findOne({ name: property });
+          if (foundProject) {
+            resolvedProperty = foundProject._id;
+          }
+          // If no project is found, we keep the existing property value.
+        } else {
+          // If property is a valid ObjectId, use it directly
+          resolvedProperty = property;
+        }
+      }
+  
+      // Update the client information if applicable
+      if (foundLead.client) {
+        await User.findByIdAndUpdate(
+          foundLead.client,
+          {
+            firstName,
+            lastName,
+            username,
+            phone,
+            CNIC,
+            city: clientCity,
+            project: resolvedProperty, // update client's project if needed
+          },
+          { new: true }
+        );
+      }
+  
+      // Prepare update data ensuring we use the resolvedProperty
+      const updateData = {
+        ...req.body,
+        city,
+        priority,
+        property: resolvedProperty,
+        area,
+        status,
+        source,
+        description,
+      };
+  
+      // Update the lead
+      const updatedLead = await Lead.findByIdAndUpdate(leadId, updateData, {
+        new: true,
+      })
+        .populate("property")
+        .populate("client")
+        .populate("allocatedTo")
+        .exec();
+  
+      res
+        .status(200)
+        .json({ result: updatedLead, message: "Lead updated successfully", success: true });
+    } catch (err) {
+      next(createError(500, err.message));
+    }
+  };
 
 export const shiftLead = async (req, res, next) => {
     try {

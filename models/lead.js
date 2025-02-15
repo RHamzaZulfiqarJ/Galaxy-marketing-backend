@@ -7,11 +7,11 @@ const leadSchema = Schema({
     area: { type: String, required: false },
     city: { type: String, required: false },
     priority: { type: String, required: false, default: 'moderate' },
-    status: { type: String, required: false },   // closed, followed up, contacted etc.
+    status: { type: String, required: false },
     clientName: { type: String, required: false },
-    clientPhone: { type: String, required: false, unique: false },
+    clientPhone: { type: String, required: false},
     client: { type: Schema.Types.ObjectId, ref: 'User', required: false },
-    source: { type: String, required: false },   // facebook,instagram etc.
+    source: { type: String, required: false },
     description: { type: String, required: false },
     allocatedTo: { type: [Schema.Types.ObjectId], ref: 'User' },
     images: { type: [String], required: false, default: [] },

@@ -1,5 +1,5 @@
 import express from 'express'
-import { createLead, getLeadByPhone, getLead, getEmployeeLeads, getLeadsStat, getLeads, filterLead, updateLead, shiftLead, shareLead, archiveLead, deleteLead, deleteWholeCollection, searchLead, } from '../controllers/lead.js'
+import { createLead, getLeadByPhone, getLead, getEmployeeLeads, getLeadsStat, getLeads, filterLead, updateLead, shiftLead, shareLead, archiveLead, deleteLead, deleteWholeCollection, searchLead, uploadLeads, } from '../controllers/lead.js'
 import { verifyEmployee, verifyManager, verifySuperAdmin, verifyToken } from '../middleware/auth.js'
 import Lead from '../models//lead.js'
 import { createError } from '../utils/error.js'
@@ -29,6 +29,7 @@ router.get('/filter', verifyToken, filterLead)
 
 // POST
 router.post('/create', verifyToken, createLead)
+router.post("/upload", verifyToken, uploadLeads);
 
 // PUT
 router.put('/archive', verifyToken, verifyEmployee, archiveLead)
