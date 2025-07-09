@@ -69,5 +69,5 @@ app.use((err, req, res, next) => {
 })
 
 mongoose.connect(CONNECTION_URL)
-    .then(() => app.listen(PORT, () => console.log('listening at port ' + PORT)))
+    .then(() => app.listen(PORT, '0.0.0.0', () => console.log('listening at port ' + PORT)))
     .catch((err) => console.log('error in connection with mongoDB = \n', err))
